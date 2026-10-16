@@ -34,7 +34,8 @@
     "test": "vitest run && npm run test:mcp-tools",
     "test:mcp-tools": "node --test \"mcp-tools/test/*.test.mjs\"",
     "typecheck": "tsc --noEmit",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "prepare": "npm run build"
   },
   "peerDependencies": {
     "react": "^18.3.1",
