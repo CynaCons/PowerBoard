@@ -35,9 +35,10 @@ function installE2EHook(): void {
 
   (window as unknown as { __POWERBOARD_BRIDGE__: unknown }).__POWERBOARD_BRIDGE__ = {
     run: async (cmd: string, params: Record<string, unknown> = {}) => {
-      const handler = commands[cmd as BoardCommandName];
-      if (!handler) throw new BridgeCommandError('UNSUPPORTED', `Unknown command "${cmd}"`);
-      return handler(params);
+      if (!Object.hasOwn(commands, cmd)) {
+        throw new BridgeCommandError('UNSUPPORTED', `Unknown command "${cmd}"`);
+      }
+      return commands[cmd as BoardCommandName](params);
     },
     handleServerFrame,
     getFile: () => useAppStore.getState().file,

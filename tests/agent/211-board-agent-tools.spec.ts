@@ -36,6 +36,11 @@ test.describe('211 - Board agent tools', () => {
     const afterCreate = await getFile(page);
     expect(afterCreate.activeBoardId).toBe(activeBoardId);
     expect(afterCreate.boards).toHaveLength(2);
+    // The new board shows up in the sidebar, but the owner stays on theirs.
+    const items = page.getByTestId(/^pb-board-item-/);
+    await expect(items).toHaveCount(2);
+    await expect(items.nth(0)).toHaveClass(/pb-board--active/);
+    await expect(items.nth(1)).not.toHaveClass(/pb-board--active/);
     await expect(page.getByTestId('board-view')).toBeVisible();
     await expect(page.getByTestId('board-title')).toHaveText('My board');
 
