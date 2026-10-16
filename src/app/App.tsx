@@ -9,6 +9,8 @@ import { Plus, Trash2 } from 'lucide-react';
 import { BoardView } from '../react';
 import { useAppStore } from './store';
 import { openNow, saveNow, startAutoSave } from './save';
+import { Settings } from './Settings';
+import { initBridge } from './bridge/client';
 // BoardView's own stylesheet, loaded the same way the component loads it.
 import '../react/BoardView.css';
 import './App.css';
@@ -36,9 +38,13 @@ export function App() {
     };
     window.addEventListener('keydown', onKeyDown);
     const stopAutoSave = startAutoSave();
+    // Dial the agent bridge when the setting is on (REQ-PB-120); the returned
+    // unsubscribe keeps the socket in step with the toggle.
+    const stopBridgeWatch = initBridge();
     return () => {
       window.removeEventListener('keydown', onKeyDown);
       stopAutoSave();
+      stopBridgeWatch();
     };
   }, []);
 
@@ -181,6 +187,7 @@ export function App() {
             />
           )}
           <span className="pb-topbar__name">{fileName ?? 'Unsaved changes'}</span>
+          <Settings />
         </header>
 
         <div className="pb-board-host">
