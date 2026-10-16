@@ -31,6 +31,26 @@
   font-size: 13px;
 }
 
+/* Editable board title: only rendered when BoardViewProps.onRename is given. */
+.board-title {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: text;
+}
+
+.board-title-input {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
 .board-view__controls {
   display: flex;
   align-items: center;
