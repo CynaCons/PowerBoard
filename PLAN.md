@@ -16,7 +16,7 @@
 - [x] B2 core: port boardOps.ts + vitest unit tests (REQ-PB-102)
 - [ ] B3 react: port BoardView and parts behind BoardViewProps; presence store (REQ-PB-104)
 - [ ] B4 CSS token pass: --pb-* custom properties, light/dark (REQ-PB-105)
-- [ ] B5 bridge: createBoardCommands(adapter), 17 commands + unit tests (REQ-PB-103)
+- [x] B5 bridge: createBoardCommands(adapter), 17 commands + unit tests (REQ-PB-103)
 - [x] B6 mcp-tools: tool definitions + withAgentMe + pollBoardUpdates as plain ESM
 - [ ] B7 powerboard-mcp server on 41778 + node tests (REQ-PB-130/131)
 - [ ] B8 app shell: multi-board sidebar, file format, open/save/autosave (REQ-PB-110..114)
