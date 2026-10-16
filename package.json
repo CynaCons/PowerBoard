@@ -31,7 +31,8 @@
     "dev": "vite --config vite.app.config.ts",
     "build": "vite build && tsc -p tsconfig.build.json",
     "build:app": "vite build --config vite.app.config.ts",
-    "test": "vitest run",
+    "test": "vitest run && npm run test:mcp-tools",
+    "test:mcp-tools": "node --test \"mcp-tools/test/*.test.mjs\"",
     "typecheck": "tsc --noEmit",
     "e2e": "playwright test"
   },
