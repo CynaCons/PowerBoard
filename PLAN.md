@@ -12,7 +12,7 @@
 ### v0.1.0 — Package + standalone app + powerboard-mcp (In Progress)
 **Goal:** powerboard package (core/react/bridge/mcp-tools), PowerBoard.html and powerboard-mcp pass the ported PowerScroll tests; an OpenCode agent works a card live on the standalone board.
 - [x] W0 contract.ts, SRS_POWERBOARD.md, AGENTS.md (coordinator)
-- [ ] B1 scaffold: vite lib build with subpath exports, vitest, playwright, tsconfig, CI, single-file app build
+- [x] B1 scaffold: vite lib build with subpath exports, vitest, playwright, tsconfig, CI, single-file app build
 - [ ] B2 core: port boardOps.ts + vitest unit tests (REQ-PB-102)
 - [ ] B3 react: port BoardView and parts behind BoardViewProps; presence store (REQ-PB-104)
 - [ ] B4 CSS token pass: --pb-* custom properties, light/dark (REQ-PB-105)
