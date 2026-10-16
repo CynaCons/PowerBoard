@@ -153,10 +153,18 @@ export function createBoardCommands(
     return value as BoardColumnId;
   }
 
+  /** A host page that is not a board → PRECONDITION (PowerScroll's wording); nothing at all → NOT_FOUND. */
+  function notABoardOrMissing(id: string): BridgeCommandError {
+    const title = adapter.pageTitle?.(id);
+    return title !== undefined
+      ? new BridgeCommandError('PRECONDITION', `Page "${title}" is not a board`)
+      : new BridgeCommandError('NOT_FOUND', `No page with id "${id}"`);
+  }
+
   function requireBoard(boardId: string): BoardRef {
     const ref = adapter.getBoard(boardId);
     if (!ref) {
-      throw new BridgeCommandError('NOT_FOUND', `No page with id "${boardId}"`);
+      throw notABoardOrMissing(boardId);
     }
     if (!ref.board) {
       throw new BridgeCommandError('PRECONDITION', `Page "${ref.title}" is not a board`);
@@ -470,7 +478,7 @@ export function createBoardCommands(
       const located = adapter.getBoard(knownBoardId);
       if (boardIdParam) {
         if (!located) {
-          throw new BridgeCommandError('NOT_FOUND', `No page with id "${knownBoardId}"`);
+          throw notABoardOrMissing(knownBoardId);
         }
         if (!located.board) {
           throw new BridgeCommandError('PRECONDITION', `Page "${located.title}" is not a board`);

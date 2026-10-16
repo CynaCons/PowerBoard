@@ -107,6 +107,12 @@ export interface BoardHostAdapter {
    * page/board. Throws BridgeCommandError('NOT_FOUND') for an unknown sectionId.
    */
   createBoard(title: string, opts?: { sectionId?: string }): BoardRef;
+  /**
+   * Title of a NON-board page with this id, if the host has such pages
+   * (PowerScroll canvas pages). Lets the bridge answer `PRECONDITION: Page "…"
+   * is not a board` instead of NOT_FOUND, as PowerScroll always did.
+   */
+  pageTitle?(id: string): string | undefined;
 }
 
 // ── Presence (agents strip) ──────────────────────────────────────────────────

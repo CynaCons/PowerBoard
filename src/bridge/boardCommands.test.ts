@@ -395,3 +395,13 @@ describe('createBoardCommands REQ-PB-103', () => {
     expect(adapter.getBoard('b1')!.board.cards).toHaveLength(0);
   });
 });
+
+describe('non-board pages (host pageTitle)', () => {
+  it('REQ-PB-103 a host page that is not a board gives PRECONDITION, unknown ids NOT_FOUND', () => {
+    const adapter = { ...createMemoryAdapter([]), pageTitle: (id: string) => (id === 'canvas-1' ? 'Notes' : undefined) };
+    const cmds = createBoardCommands(adapter);
+    expect(() => cmds.board_read({ boardId: 'canvas-1' })).toThrow(/Page "Notes" is not a board/);
+    expect(() => cmds.board_read({ boardId: 'nope' })).toThrow(/No page with id "nope"/);
+    expect(() => cmds.agent_leave({ actor: 'oc-x', me: 'oc-x', boardId: 'canvas-1' })).toThrow(/is not a board/);
+  });
+});
