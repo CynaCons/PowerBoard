@@ -1,0 +1,41 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            mcp/package-lock.json
+
+      - run: npm ci
+
+      - run: npm ci --prefix mcp
+
+      - run: npm test
+
+      - run: npm test --prefix mcp
+
+      - run: npm run build
+
+      - run: npm run build:app
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "$GITHUB_REF_NAME" dist-app/PowerBoard.html --verify-tag --title "PowerBoard $GITHUB_REF_NAME" --generate-notes
