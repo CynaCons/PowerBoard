@@ -1,0 +1,64 @@
+{
+  "name": "powerboard",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "description": "Task board for people and AI agents: standalone PowerBoard.html and an embeddable React board",
+  "repository": "github:CynaCons/PowerBoard",
+  "files": [
+    "dist",
+    "mcp-tools",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    "./core": {
+      "types": "./dist/types/core/index.d.ts",
+      "import": "./dist/core.js"
+    },
+    "./react": {
+      "types": "./dist/types/react/index.d.ts",
+      "import": "./dist/react.js"
+    },
+    "./bridge": {
+      "types": "./dist/types/bridge/index.d.ts",
+      "import": "./dist/bridge.js"
+    },
+    "./mcp-tools": "./mcp-tools/index.js",
+    "./style.css": "./dist/powerboard.css"
+  },
+  "scripts": {
+    "dev": "vite --config vite.app.config.ts",
+    "build": "vite build && tsc -p tsconfig.build.json",
+    "build:app": "vite build --config vite.app.config.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "e2e": "playwright test"
+  },
+  "peerDependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "dependencies": {
+    "lucide-react": "^0.577.0",
+    "marked": "^17.0.5",
+    "nanoid": "^5.1.16",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^22.15.0",
+    "@types/react": "^18.3.28",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^6.0.1",
+    "jsdom": "^29.1.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.1",
+    "vite-plugin-singlefile": "^2.3.2",
+    "vitest": "^5.0.5"
+  }
+}
