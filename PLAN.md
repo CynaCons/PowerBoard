@@ -14,11 +14,11 @@
 - [x] W0 contract.ts, SRS_POWERBOARD.md, AGENTS.md (coordinator)
 - [x] B1 scaffold: vite lib build with subpath exports, vitest, playwright, tsconfig, CI, single-file app build
 - [x] B2 core: port boardOps.ts + vitest unit tests (REQ-PB-102)
-- [ ] B3 react: port BoardView and parts behind BoardViewProps; presence store (REQ-PB-104)
+- [x] B3 react: port BoardView and parts behind BoardViewProps; presence store (REQ-PB-104)
 - [ ] B4 CSS token pass: --pb-* custom properties, light/dark (REQ-PB-105)
 - [x] B5 bridge: createBoardCommands(adapter), 17 commands + unit tests (REQ-PB-103)
 - [x] B6 mcp-tools: tool definitions + withAgentMe + pollBoardUpdates as plain ESM
-- [ ] B7 powerboard-mcp server on 41778 + node tests (REQ-PB-130/131)
+- [x] B7 powerboard-mcp server on 41778 + node tests (REQ-PB-130/131)
 - [ ] B8 app shell: multi-board sidebar, file format, open/save/autosave (REQ-PB-110..114)
 - [ ] B9 app bridge client + settings toggle (REQ-PB-120/121)
 - [ ] B10 Playwright: port T209-T218 against the standalone app
