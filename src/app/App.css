@@ -244,6 +244,87 @@ body {
   font-size: 13px;
 }
 
+/* ── Settings popover ────────────────────────────────────────── */
+
+.pb-settings {
+  position: relative;
+}
+
+.pb-settings__popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 40;
+  width: 288px;
+  box-sizing: border-box;
+  padding: 14px;
+  border: 1px solid var(--pb-line);
+  border-radius: 10px;
+  background: var(--pb-surface);
+  box-shadow: 0 12px 28px rgba(20, 24, 26, 0.16);
+}
+
+.pb-settings__title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--pb-muted);
+}
+
+.pb-settings__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pb-settings__checkbox {
+  margin: 2px 0 0;
+  accent-color: var(--pb-accent);
+}
+
+.pb-settings__status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 10px;
+  color: var(--pb-muted);
+  font-size: 13px;
+}
+
+.pb-settings__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #9aa2a4;
+  flex: 0 0 auto;
+}
+
+.pb-settings__dot[data-state='connecting'] {
+  background: #d98324;
+}
+
+.pb-settings__dot[data-state='connected'] {
+  background: var(--pb-accent);
+}
+
+.pb-settings__dot[data-state='displaced'] {
+  background: var(--pb-danger);
+}
+
+.pb-settings__hint {
+  margin: 10px 0 0;
+  color: var(--pb-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.pb-settings__hint--warn {
+  color: var(--pb-danger);
+}
+
 .pb-board-host {
   flex: 1;
   min-height: 0;
