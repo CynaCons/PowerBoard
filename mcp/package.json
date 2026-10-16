@@ -1,0 +1,45 @@
+{
+  "name": "powerboard-mcp",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "MCP server for reading and editing a live PowerBoard task board",
+  "main": "server.js",
+  "bin": {
+    "powerboard-mcp": "server.js"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "sync": "node -e \"require('fs').copyFileSync('../mcp-tools/index.js','mcp-tools.js')\"",
+    "prepack": "npm run sync",
+    "test": "npm run sync && node --test \"test/**/*.test.mjs\""
+  },
+  "files": [
+    "server.js",
+    "mcp-tools.js",
+    "README.md"
+  ],
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "task-board",
+    "kanban",
+    "local-first",
+    "powerboard"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CynaCons/PowerBoard.git",
+    "directory": "mcp"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "ws": "^8.18.0"
+  }
+}
