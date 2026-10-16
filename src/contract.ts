@@ -130,6 +130,12 @@ export interface BoardViewProps {
   onRename?(title: string): void;
   /** localStorage key for the activity panel collapsed state (device preference). */
   activityCollapsedKey?: string; // default 'powerboard-activity-collapsed'
+  /**
+   * Markdown → HTML for card descriptions. Default: PowerBoard's built-in
+   * renderer (marked, GFM, clickable task checkboxes, no math). PowerScroll
+   * passes its own `markdownToHtml` so KaTeX keeps working when embedded.
+   */
+  renderMarkdown?(markdown: string): string;
 }
 
 // ── Standalone file format (PowerBoard.html) ─────────────────────────────────
