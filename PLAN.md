@@ -22,4 +22,4 @@
 - [x] B8 app shell: multi-board sidebar, file format, open/save/autosave (REQ-PB-110..114)
 - [x] B9 app bridge client + settings toggle (REQ-PB-120/121)
 - [x] B10 Playwright: port T209-T218 against the standalone app [agent: cp-board-b10]
-- [ ] B11 README, release workflow (GitHub release PowerBoard.html, npm publish)
+- [x] B11 README, release workflow (GitHub release PowerBoard.html, npm publish) [agent: cp-board-b11]
