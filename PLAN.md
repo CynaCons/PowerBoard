@@ -21,5 +21,5 @@
 - [x] B7 powerboard-mcp server on 41778 + node tests (REQ-PB-130/131)
 - [x] B8 app shell: multi-board sidebar, file format, open/save/autosave (REQ-PB-110..114)
 - [x] B9 app bridge client + settings toggle (REQ-PB-120/121)
-- [ ] B10 Playwright: port T209-T218 against the standalone app
+- [x] B10 Playwright: port T209-T218 against the standalone app [agent: cp-board-b10]
 - [ ] B11 README, release workflow (GitHub release PowerBoard.html, npm publish)
