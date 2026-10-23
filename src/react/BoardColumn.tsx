@@ -1,20 +1,36 @@
-import { Plus } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { BoardCard, BoardColumnId } from '../contract';
 import { BoardCardFace } from './BoardCardFace';
 import { avatarColor } from './boardUi';
+import type { Lane } from './lanes';
+
+/** A lane as one column shows it: the lane's cards in this column. */
+export interface ColumnLane extends Lane {
+  collapsed: boolean;
+  /** The lane's cards across all columns, for its title. */
+  total: number;
+}
 
 interface BoardColumnProps {
-  cards: BoardCard[];
+  lanes: ColumnLane[];
+  /** Cards in this column, each once, for the header count. */
+  count: number;
   column: { id: BoardColumnId; title: string };
+  /** Lane titles show when the board has labels (REQ-BOARD-043). */
+  showLaneTitles?: boolean;
+  /** The column that carries the lane titles and their collapse buttons; the others keep the space. */
+  titleColumn?: boolean;
+  onToggleLane?: (key: string) => void;
   draggingCardId?: string;
+  dropLane?: string;
   dropIndex?: number;
   activeCardIds?: Set<string>;
   fadingCardIds?: Set<string>;
   flashingCardIds?: Set<string>;
   onCreate: (title: string) => void;
   onOpen: (card: BoardCard) => void;
-  onCardPointerDown: (card: BoardCard, event: React.PointerEvent<HTMLButtonElement>) => void;
+  onCardPointerDown: (card: BoardCard, event: React.PointerEvent<HTMLButtonElement>, lane: string) => void;
   onCardPointerUp: (card: BoardCard) => void;
   onCardKeyDown: (card: BoardCard, event: React.KeyboardEvent<HTMLButtonElement>) => void;
   spotlightName?: string | null;
@@ -22,9 +38,14 @@ interface BoardColumnProps {
 }
 
 export function BoardColumn({
-  cards,
+  lanes,
+  count,
   column,
+  showLaneTitles = false,
+  titleColumn = false,
+  onToggleLane,
   draggingCardId,
+  dropLane,
   dropIndex,
   activeCardIds,
   fadingCardIds,
@@ -47,8 +68,8 @@ export function BoardColumn({
   }, [adding]);
 
   useEffect(() => {
-    if (cards.length === 0) setConfirmingClear(false);
-  }, [cards.length]);
+    if (count === 0) setConfirmingClear(false);
+  }, [count]);
 
   const close = () => {
     setDraft('');
@@ -69,8 +90,8 @@ export function BoardColumn({
       <header className="board-column__header">
         <span className={`board-column__dot board-column__dot--${column.id}`} />
         <h2>{column.title}</h2>
-        <span className="board-column__count">{cards.length}</span>
-        {column.id === 'done' && cards.length > 0 && onClearDone && !confirmingClear && (
+        <span className="board-column__count">{count}</span>
+        {column.id === 'done' && count > 0 && onClearDone && !confirmingClear && (
           <button
             type="button"
             className="board-column__clear"
@@ -83,7 +104,7 @@ export function BoardColumn({
         {confirmingClear && (
           <div className="board-column__confirm" data-testid="board-clear-done-confirm">
             <span>
-              Archive {cards.length} done card{cards.length === 1 ? '' : 's'}?
+              Archive {count} done card{count === 1 ? '' : 's'}?
             </span>
             <button
               type="button"
@@ -106,35 +127,72 @@ export function BoardColumn({
         )}
       </header>
       <div className="board-column__cards">
-        {cards.map((card, index) => (
-          <div key={card.id}>
-            {dropIndex === index && <div className="board-placeholder" />}
-            <BoardCardFace
-              card={card}
-              dragging={draggingCardId === card.id}
-              active={activeCardIds?.has(card.id)}
-              fading={fadingCardIds?.has(card.id)}
-              flashing={flashingCardIds?.has(card.id)}
-              spotlight={Boolean(
-                spotlightName
-                && (card.assignee === spotlightName || card.createdBy === spotlightName),
-              )}
-              dimmed={Boolean(
-                spotlightName
-                && card.assignee !== spotlightName
-                && card.createdBy !== spotlightName,
-              )}
-              spotlightColor={spotlightName ? avatarColor(spotlightName) : undefined}
-              onOpen={() => {
-                onCardPointerUp(card);
-                onOpen(card);
-              }}
-              onPointerDown={(event) => onCardPointerDown(card, event)}
-              onKeyDown={(event) => onCardKeyDown(card, event)}
-            />
-          </div>
-        ))}
-        {dropIndex === cards.length && <div className="board-placeholder" />}
+        {lanes.map((lane) => {
+          // Drop indexes count the cards that stay put, not the one being dragged.
+          const staying = lane.cards.filter((card) => card.id !== draggingCardId);
+          const laneDrop = dropLane === lane.key ? dropIndex : undefined;
+          const name = lane.label ?? 'No label';
+          return (
+            <div
+              key={lane.key}
+              className={`board-lane${showLaneTitles ? ' board-lane--titled' : ''}`}
+              data-board-lane={lane.key}
+            >
+              {showLaneTitles && (titleColumn ? (
+                <div className="board-lane__title" data-testid="board-lane-title">
+                  <button
+                    type="button"
+                    className="board-lane__toggle"
+                    aria-label={`${lane.collapsed ? 'Expand' : 'Collapse'} ${name} lane`}
+                    aria-expanded={!lane.collapsed}
+                    onClick={() => onToggleLane?.(lane.key)}
+                  >
+                    {lane.collapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+                  </button>
+                  {lane.label ? (
+                    <span className="board-label">{lane.label}</span>
+                  ) : (
+                    <span className="board-lane__none">{name}</span>
+                  )}
+                  <span className="board-lane__count">{lane.total}</span>
+                </div>
+              ) : (
+                <div className="board-lane__title board-lane__title--spacer" aria-hidden="true" />
+              ))}
+              {!lane.collapsed && lane.cards.map((card) => (
+                <div key={card.id}>
+                  {card.id !== draggingCardId && laneDrop === staying.indexOf(card)
+                    && <div className="board-placeholder" data-testid="board-drop-slot" />}
+                  <BoardCardFace
+                    card={card}
+                    dragging={draggingCardId === card.id}
+                    active={activeCardIds?.has(card.id)}
+                    fading={fadingCardIds?.has(card.id)}
+                    flashing={flashingCardIds?.has(card.id)}
+                    spotlight={Boolean(
+                      spotlightName
+                      && (card.assignee === spotlightName || card.createdBy === spotlightName),
+                    )}
+                    dimmed={Boolean(
+                      spotlightName
+                      && card.assignee !== spotlightName
+                      && card.createdBy !== spotlightName,
+                    )}
+                    spotlightColor={spotlightName ? avatarColor(spotlightName) : undefined}
+                    onOpen={() => {
+                      onCardPointerUp(card);
+                      onOpen(card);
+                    }}
+                    onPointerDown={(event) => onCardPointerDown(card, event, lane.key)}
+                    onKeyDown={(event) => onCardKeyDown(card, event)}
+                  />
+                </div>
+              ))}
+              {(lane.collapsed ? laneDrop !== undefined : laneDrop === staying.length)
+                && <div className="board-placeholder" data-testid="board-drop-slot" />}
+            </div>
+          );
+        })}
       </div>
       {adding ? (
         <input

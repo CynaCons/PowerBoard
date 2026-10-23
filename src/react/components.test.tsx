@@ -100,7 +100,8 @@ describe('BoardColumn', () => {
 
     render(
       <BoardColumn
-        cards={[card]}
+        lanes={[{ key: '__none__', label: null, cards: [card], collapsed: false, total: 1 }]}
+        count={1}
         column={column}
         onCreate={onCreate}
         onOpen={() => undefined}

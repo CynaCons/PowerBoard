@@ -26,13 +26,20 @@
 
 ## v0.2 — Boards that agents work in
 
-### v0.2.0 — Nested checklists that agents edit (current) (ACTIVE)
+### v0.2.0 — Nested checklists that agents edit (released 2026-10-23) (COMPLETE)
 **Goal:** Port PowerScroll v0.90.0: checklists nest, agents add, edit, move and remove items.
 - [x] Port checklist depth and the new operations to core [agent: claude]
 - [x] Port the checklist bridge commands and MCP tool definitions [agent: claude]
 - [x] Card shows nesting with Indent and Outdent [agent: claude]
 - [x] Unit, MCP and Playwright checks [agent: claude]
-- [ ] Release v0.2.0
+- [x] Release v0.2.0 [agent: claude]
+
+### v0.3.0 — Swim lanes by label (released 2026-10-23) (COMPLETE)
+**Goal:** Port PowerScroll v0.91.0: swim lanes per label, a card in each of its labels' lanes.
+- [x] Lanes as rows across the columns, collapsible [agent: claude]
+- [x] Drag into another lane swaps the card's label [agent: claude]
+- [x] Unit and Playwright checks [agent: claude]
+- [x] Release v0.3.0 [agent: claude]
 
 ## Future (Backlog)
 - [ ] npm publish powerboard + powerboard-mcp 0.1.0 (owner npm login; swap mcp's file:.. dependency for ^0.1.0 first, see docs/RELEASING.md)

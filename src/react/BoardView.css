@@ -447,10 +447,17 @@
   min-width: 0;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
+  column-gap: 14px;
+  row-gap: 0;
 }
 
+/* Lanes are rows shared by the four columns (REQ-BOARD-043): each column spans
+   every row and takes the grid's rows, so a lane lines up across the columns. */
 .board-column {
+  display: grid;
+  grid-row: 1 / -1;
+  grid-template-rows: subgrid;
+  align-content: start;
   min-height: 280px;
   padding: 11px;
   border: 1px solid var(--pb-border-soft);
@@ -712,7 +719,50 @@
   font-size: 13px;
 }
 
+.board-column__cards {
+  display: contents;
+}
+
+.board-lane {
+  min-width: 0;
+}
+
+.board-lane--titled {
+  padding-bottom: 6px;
+  border-top: 1px solid var(--pb-border-soft);
+}
+
+.board-lane__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.board-lane__toggle {
+  display: inline-flex;
+  padding: 2px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--pb-text-muted);
+  cursor: pointer;
+}
+
+.board-lane__none,
+.board-lane__count {
+  color: var(--pb-text-muted);
+  font-size: 12px;
+}
+
+.board-lane__none {
+  font-weight: 600;
+}
+
 .board-add {
+  align-self: start;
   min-height: 32px;
   display: flex;
   align-items: center;
