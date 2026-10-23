@@ -41,6 +41,8 @@ test('cards sit in one lane per label, rows aligned; lanes collapse', async ({ p
 
   await page.getByRole('button', { name: 'Collapse engine lane' }).click();
   await expect(lane(page, 'todo', 'engine').locator('.board-card__title')).toHaveCount(0);
+  // A collapsed lane is only its header bar: no empty boxes under it.
+  expect((await lane(page, 'doing', 'engine').boundingBox())?.height ?? 0).toBeLessThan(4);
   await page.getByRole('button', { name: 'Expand engine lane' }).click();
   await expect(lane(page, 'todo', 'engine').locator('.board-card__title')).toHaveCount(2);
 });

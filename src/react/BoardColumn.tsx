@@ -129,7 +129,7 @@ export function BoardColumn({
           return (
             <Fragment key={lane.key}>
               {showLaneTitles && <div className="board-lane__gap" aria-hidden="true" />}
-              <div className="board-lane" data-board-lane={lane.key}>
+              <div className={`board-lane${lane.collapsed ? ' board-lane--collapsed' : ''}`} data-board-lane={lane.key}>
               {!lane.collapsed && lane.cards.map((card) => (
                 <div key={card.id}>
                   {card.id !== draggingCardId && laneDrop === staying.indexOf(card)
