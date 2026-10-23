@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import type { BoardCard, BoardColumnId, BoardData, BoardViewProps } from '../contract';
 import { OWNER_ACTOR } from '../contract';
 import {
@@ -194,6 +194,7 @@ export function BoardView(props: BoardViewProps) {
   const waitingCount = live.filter((card) => card.column === 'waiting').length;
   const lanes = boardLanes(live, visibleCards);
   const hasLabels = live.some((card) => card.labels.length > 0);
+  const collapsedNow = (key: string) => collapsedLanes.includes(key);
   const toggleLane = (key: string) => setCollapsedLanes((current) =>
     current.includes(key) ? current.filter((item) => item !== key) : [...current, key]);
   const spotlightActive = spotlight && chips.some((chip) => chip.name === spotlight)
@@ -467,9 +468,9 @@ export function BoardView(props: BoardViewProps) {
       >
         <div
           className="board-view__columns"
-          style={{ gridTemplateRows: `auto repeat(${lanes.length}, auto) 1fr` }}
+          style={{ gridTemplateRows: `auto repeat(${lanes.length}, ${hasLabels ? 'auto auto' : 'auto'}) 1fr` }}
         >
-          {BOARD_COLUMNS.map((column, columnIndex) => {
+          {BOARD_COLUMNS.map((column) => {
             const isDropColumn = drop?.column === column.id;
 
             return (
@@ -484,8 +485,6 @@ export function BoardView(props: BoardViewProps) {
                   collapsed: collapsedLanes.includes(lane.key),
                 }))}
                 showLaneTitles={hasLabels}
-                titleColumn={columnIndex === 0}
-                onToggleLane={toggleLane}
                 draggingCardId={drag?.active ? drag.cardId : undefined}
                 dropLane={isDropColumn ? drop.lane : undefined}
                 dropIndex={isDropColumn ? drop.index : undefined}
@@ -520,6 +519,28 @@ export function BoardView(props: BoardViewProps) {
               />
             );
           })}
+          {hasLabels && lanes.map((lane, index) => (
+            <div
+              key={`lane-${lane.key}`}
+              className={`board-lane-header${index === 0 ? ' board-lane-header--first' : ''}`}
+              data-testid="board-lane-title"
+              style={{ gridRow: 2 + index * 2 }}
+            >
+              <button
+                type="button"
+                className="board-lane-header__toggle"
+                aria-label={`${collapsedNow(lane.key) ? 'Expand' : 'Collapse'} ${lane.label ?? 'No label'} lane`}
+                aria-expanded={!collapsedNow(lane.key)}
+                onClick={() => toggleLane(lane.key)}
+              >
+                {collapsedNow(lane.key) ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+              </button>
+              {lane.label ? <span className="board-label">{lane.label}</span> : <span className="board-lane-header__none">No label</span>}
+              <span className="board-lane-header__count">
+                {lane.cards.length} card{lane.cards.length === 1 ? '' : 's'}
+              </span>
+            </div>
+          ))}
         </div>
         <ActivityPanel
           board={board}

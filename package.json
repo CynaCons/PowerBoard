@@ -1,6 +1,6 @@
 {
   "name": "powerboard",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "type": "module",
   "license": "MIT",
   "description": "Task board for people and AI agents: standalone PowerBoard.html and an embeddable React board",

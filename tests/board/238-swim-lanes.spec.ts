@@ -8,6 +8,9 @@
 import { expect, test, type Page } from '@playwright/test';
 import { getBoard, openBoard, runBridge } from '../helpers';
 
+// Lane bars make the board taller than the default 720 px window.
+test.use({ viewport: { width: 1280, height: 1000 } });
+
 const create = (page: Page, boardId: string, title: string, labels: string[], column = 'todo') =>
   runBridge(page, 'card_create', { boardId, title, labels, column, actor: 'planner' });
 
