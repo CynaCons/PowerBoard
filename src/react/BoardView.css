@@ -1238,8 +1238,31 @@
   text-decoration: line-through;
 }
 
-.board-checklist button {
+.board-checklist__level {
+  display: inline-flex;
+  padding: 3px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: transparent;
+  cursor: pointer;
+}
+
+.board-checklist span + .board-checklist__level {
   margin-left: auto;
+}
+
+.board-checklist li:hover .board-checklist__level,
+.board-checklist__level:focus-visible {
+  color: var(--pb-text-muted);
+}
+
+.board-checklist li:hover .board-checklist__level:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.board-checklist__remove {
   border: none;
   background: transparent;
   color: var(--pb-text-muted);

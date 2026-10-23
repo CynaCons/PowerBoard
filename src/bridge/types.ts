@@ -42,6 +42,10 @@ export type BoardCommandName =
   | 'card_note'
   | 'card_check'
   | 'card_checklist_add'
+  | 'card_checklist_update'
+  | 'card_checklist_remove'
+  | 'card_checklist_move'
+  | 'card_checklist_set'
   | 'card_archive'
   | 'card_restore'
   | 'agent_status'
@@ -96,6 +100,21 @@ export interface CardListEntry {
   archivedAt?: number;
 }
 
+/** A checklist item as agents see it: `index` is its 1-based position, `depth` its level (0 to 3). */
+export interface CheckItemEntry {
+  id: string;
+  index: number;
+  text: string;
+  done: boolean;
+  depth: number;
+}
+
+/** A card after a checklist change, with the item it touched. */
+export interface ChecklistEditResult extends CardListEntry {
+  item?: CheckItemEntry;
+  items: CheckItemEntry[];
+}
+
 export interface BoardReadResult {
   boardId: string;
   title: string;
@@ -111,7 +130,7 @@ export interface BoardCardDetail {
   order: number;
   assignee?: string;
   labels: string[];
-  checklist: Array<{ id: string; text: string; done: boolean }>;
+  checklist: CheckItemEntry[];
   notes: Array<{ id: string; author: string; at: number; text: string }>;
   question?: string;
   createdBy: string;

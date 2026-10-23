@@ -20,6 +20,7 @@ import {
   BOARD_TOOL_NAMES,
   BOARD_TOOLS,
   BOARD_WORKFLOW,
+  CHECK_ENTRY,
   GENERATED_NAME_RE,
   ME_PROP,
   NAME_REQUIRED_MESSAGE,
@@ -42,6 +43,10 @@ const EXPECTED_TOOL_NAMES = [
   'card_note',
   'card_check',
   'card_checklist_add',
+  'card_checklist_update',
+  'card_checklist_remove',
+  'card_checklist_move',
+  'card_checklist_set',
   'card_archive',
   'card_restore',
   'agent_status',
@@ -79,8 +84,8 @@ function loadSourceBoardTools(src) {
   assert.ok(loopAt > -1, 'source should have the me-required loop');
   const end = src.lastIndexOf(']', loopAt);
   // eslint-disable-next-line no-new-func -- it is test code reading a trusted file
-  const factory = new Function('BOARD_WORKFLOW', 'ME_PROP', 'return [' + src.slice(start, end) + '];');
-  const tools = factory(BOARD_WORKFLOW, ME_PROP);
+  const factory = new Function('BOARD_WORKFLOW', 'ME_PROP', 'CHECK_ENTRY', 'return [' + src.slice(start, end) + '];');
+  const tools = factory(BOARD_WORKFLOW, ME_PROP, CHECK_ENTRY);
   // The source adds `me` in a loop after the array; this module does it inline.
   for (const tool of tools) {
     if (!BOARD_ME_TOOLS.has(tool.name)) continue;
@@ -105,14 +110,14 @@ test('REQ-PB-101 exports the shared constants', () => {
   assert.equal(GENERATED_NAME_RE.test('unnamed-1a2b3c4d'), true);
 });
 
-test('REQ-PB-103 defines the 17 board tools in source order with unique names', () => {
-  assert.equal(BOARD_TOOLS.length, 17);
+test('REQ-PB-103 defines the 21 board tools in source order with unique names', () => {
+  assert.equal(BOARD_TOOLS.length, 21);
   assert.deepEqual(BOARD_TOOL_NAMES, EXPECTED_TOOL_NAMES);
   assert.deepEqual(
     BOARD_TOOLS.map((tool) => tool.name),
     EXPECTED_TOOL_NAMES,
   );
-  assert.equal(new Set(BOARD_TOOL_NAMES).size, 17);
+  assert.equal(new Set(BOARD_TOOL_NAMES).size, 21);
   for (const tool of BOARD_TOOLS) {
     assert.equal(typeof tool.description, 'string');
     assert.ok(tool.description.length > 0);
@@ -122,7 +127,7 @@ test('REQ-PB-103 defines the 17 board tools in source order with unique names', 
 });
 
 test('REQ-PB-131 every BOARD_ME tool has me in required, and only those do', () => {
-  assert.equal(BOARD_ME_TOOLS.size, 14);
+  assert.equal(BOARD_ME_TOOLS.size, 18);
   for (const tool of BOARD_TOOLS) {
     const required = tool.inputSchema.required || [];
     if (BOARD_ME_TOOLS.has(tool.name)) {

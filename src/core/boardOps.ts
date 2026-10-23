@@ -35,7 +35,14 @@ interface CreateCardArgs {
   column?: BoardColumnId;
   description?: string;
   labels?: string[];
-  checklist?: string[];
+  checklist?: Array<string | ChecklistEntry>;
+}
+
+/** A checklist item as written by a person or an agent, before it has an id. */
+export interface ChecklistEntry {
+  text: string;
+  done?: boolean;
+  depth?: number;
 }
 
 interface UpdateCardArgs {
@@ -181,14 +188,10 @@ export function createCard(
     column,
     order: liveCards(board.cards).filter((item) => item.column === column).length,
     labels: args.labels ?? [],
-    checklist: (args.checklist ?? [])
-      .map((text) => text.trim())
-      .filter(Boolean)
-      .map((text) => ({
-        id: generateId(),
-        text,
-        done: false,
-      })),
+    checklist: newChecklist(
+      (args.checklist ?? []).map((entry) => (typeof entry === 'string' ? { text: entry } : entry)),
+      [],
+    ),
     notes: [],
     createdBy: actor,
     createdAt: now,
@@ -360,34 +363,114 @@ export function addNote(
   );
 }
 
-export function addChecklistItem(
+/** Deepest checklist level: four levels, 0 to 3, like PowerPlan's outline (REQ-BOARD-040). */
+export const MAX_CHECK_DEPTH = 3;
+
+export function depthOf(item: BoardCheckItem): number {
+  return item.depth ?? 0;
+}
+
+function clampDepth(depth: number, max = MAX_CHECK_DEPTH): number {
+  return Math.max(0, Math.min(max, MAX_CHECK_DEPTH, Math.round(depth)));
+}
+
+/** Each item at most one level below the item above it; the first at the top level. */
+export function normalizeChecklist(items: BoardCheckItem[]): BoardCheckItem[] {
+  let above = -1;
+  return items.map((item) => {
+    const depth = clampDepth(depthOf(item), above + 1);
+    above = depth;
+    return depth === depthOf(item) ? item : { ...item, depth };
+  });
+}
+
+/** The index just past `index`'s sub-items. */
+export function subtreeEnd(items: BoardCheckItem[], index: number): number {
+  let end = index + 1;
+  while (end < items.length && depthOf(items[end]) > depthOf(items[index])) end += 1;
+  return end;
+}
+
+/**
+ * Builds a checklist from written entries. An entry whose text matches an
+ * item of `previous` keeps that item's id, so an agent rewriting the list does
+ * not lose the items it left alone.
+ */
+function newChecklist(entries: ChecklistEntry[], previous: BoardCheckItem[]): BoardCheckItem[] {
+  const unused = [...previous];
+  const items = entries
+    .map((entry) => ({ ...entry, text: entry.text.trim() }))
+    .filter((entry) => entry.text)
+    .map((entry) => {
+      const at = unused.findIndex((item) => item.text === entry.text);
+      const id = at >= 0 ? unused.splice(at, 1)[0].id : generateId();
+      return { id, text: entry.text, done: entry.done ?? false, depth: clampDepth(entry.depth ?? 0) };
+    });
+  return normalizeChecklist(items);
+}
+
+/**
+ * Reads PowerPlan-style lines: `- [ ] text`, `- [x] text`, two spaces (or a
+ * tab) per level. Plain lines and `- text` become open items.
+ */
+export function parseChecklistText(text: string): ChecklistEntry[] {
+  return text.split(/\r?\n/).flatMap((line) => {
+    if (!line.trim()) return [];
+    const indent = line.match(/^[ \t]*/)![0].replace(/\t/g, '  ').length;
+    const body = line.trim().replace(/^[-*+]\s+/, '');
+    const box = body.match(/^\[([ xX])\]\s*/);
+    return [{
+      text: box ? body.slice(box[0].length) : body,
+      done: box ? box[1] !== ' ' : false,
+      depth: Math.floor(indent / 2),
+    }];
+  });
+}
+
+function withChecklist(
   board: BoardData,
-  args: { cardId: string; text: string },
+  cardId: string,
+  checklist: BoardCheckItem[],
+  type: BoardEventType,
   actor: string,
   now: number,
+  text?: string,
 ): BoardData {
-  requireLive(getCard(board, args.cardId));
-
-  const item: BoardCheckItem = {
-    id: generateId(),
-    text: args.text.trim(),
-    done: false,
-  };
-
   return appendEvent(
     {
       ...board,
-      cards: replaceCard(board, args.cardId, (current) => ({
-        ...current,
-        checklist: [...current.checklist, item],
-        updatedAt: now,
-      })),
+      cards: replaceCard(board, cardId, (current) => ({ ...current, checklist, updatedAt: now })),
     },
-    'updated',
+    type,
     actor,
     now,
-    { cardId: args.cardId, text: item.text },
+    text === undefined ? { cardId } : { cardId, text },
   );
+}
+
+/**
+ * Adds an item at `index` (0-based; default the end) and `depth` (clamped to
+ * one level below the item above it).
+ */
+export function addChecklistItem(
+  board: BoardData,
+  args: { cardId: string; text: string; index?: number; depth?: number; done?: boolean; id?: string },
+  actor: string,
+  now: number,
+): BoardData {
+  const found = requireLive(getCard(board, args.cardId));
+  const list = found.checklist;
+  const at = Math.max(0, Math.min(list.length, Math.round(args.index ?? list.length)));
+  const above = at === 0 ? -1 : depthOf(list[at - 1]);
+  const item: BoardCheckItem = {
+    id: args.id ?? generateId(),
+    text: args.text.trim(),
+    done: args.done ?? false,
+    depth: clampDepth(args.depth ?? 0, above + 1),
+  };
+  const checklist = [...list];
+  checklist.splice(at, 0, item);
+  return withChecklist(board, args.cardId, normalizeChecklist(checklist), 'updated', actor, now, item.text);
 }
 
 export function setChecklistItem(
@@ -397,29 +480,96 @@ export function setChecklistItem(
   now: number,
 ): BoardData {
   const found = requireLive(getCard(board, args.cardId));
-
-  if (!found.checklist.some((item) => item.id === args.itemId)) {
-    throw new BoardOperationError('NOT_FOUND', `Checklist item "${args.itemId}" was not found`);
-  }
-
-  return appendEvent(
-    {
-      ...board,
-      cards: replaceCard(board, args.cardId, (current) => ({
-        ...current,
-        checklist: current.checklist.map((item) =>
-          item.id === args.itemId ? { ...item, done: args.done } : item,
-        ),
-        updatedAt: now,
-      })),
-    },
-    'checked',
-    actor,
-    now,
-    { cardId: args.cardId },
+  const target = requireChecklistItem(found, args.itemId);
+  const checklist = found.checklist.map((item) =>
+    item.id === args.itemId ? { ...item, done: args.done } : item,
   );
+  return withChecklist(board, args.cardId, checklist, 'checked', actor, now, target.text);
 }
 
+/** Renames a checklist item. Blank text is refused rather than saved as an empty row. */
+export function renameChecklistItem(
+  board: BoardData,
+  args: { cardId: string; itemId: string; text: string },
+  actor: string,
+  now: number,
+): BoardData {
+  const found = requireLive(getCard(board, args.cardId));
+  const target = requireChecklistItem(found, args.itemId);
+  const text = args.text.trim();
+
+  if (!text || text === target.text) return board;
+
+  const checklist = found.checklist.map((item) => (item.id === args.itemId ? { ...item, text } : item));
+  return withChecklist(board, args.cardId, checklist, 'updated', actor, now, text);
+}
+
+/**
+ * Sets an item's level; its sub-items move with it (REQ-BOARD-041). The level
+ * is clamped to one below the item above it.
+ */
+export function setChecklistItemDepth(
+  board: BoardData,
+  args: { cardId: string; itemId: string; depth: number },
+  actor: string,
+  now: number,
+): BoardData {
+  const found = requireLive(getCard(board, args.cardId));
+  const target = requireChecklistItem(found, args.itemId);
+  const list = found.checklist;
+  const at = list.indexOf(target);
+  const above = at === 0 ? -1 : depthOf(list[at - 1]);
+  const delta = clampDepth(args.depth, above + 1) - depthOf(target);
+
+  if (delta === 0) return board;
+
+  const end = subtreeEnd(list, at);
+  const checklist = list.map((item, index) =>
+    index >= at && index < end ? { ...item, depth: clampDepth(depthOf(item) + delta) } : item,
+  );
+  return withChecklist(board, args.cardId, normalizeChecklist(checklist), 'updated', actor, now, target.text);
+}
+
+/** Moves a checklist item, alone, to `index` (clamped) in the card's list. */
+export function moveChecklistItem(
+  board: BoardData,
+  args: { cardId: string; itemId: string; index: number },
+  actor: string,
+  now: number,
+): BoardData {
+  const found = requireLive(getCard(board, args.cardId));
+  const target = requireChecklistItem(found, args.itemId);
+  const from = found.checklist.indexOf(target);
+  const to = Math.max(0, Math.min(found.checklist.length - 1, Math.round(args.index)));
+
+  if (from === to) return board;
+
+  const checklist = found.checklist.filter((item) => item.id !== args.itemId);
+  checklist.splice(to, 0, target);
+  return withChecklist(board, args.cardId, normalizeChecklist(checklist), 'updated', actor, now, target.text);
+}
+
+/** Replaces the whole checklist; items whose text is unchanged keep their id (REQ-BOARD-042). */
+export function replaceChecklist(
+  board: BoardData,
+  args: { cardId: string; items: ChecklistEntry[] },
+  actor: string,
+  now: number,
+): BoardData {
+  const found = requireLive(getCard(board, args.cardId));
+  const checklist = newChecklist(args.items, found.checklist);
+  return withChecklist(board, args.cardId, checklist, 'updated', actor, now, `checklist of ${checklist.length}`);
+}
+
+function requireChecklistItem(card: BoardCard, itemId: string): BoardCheckItem {
+  const item = card.checklist.find((entry) => entry.id === itemId);
+  if (!item) {
+    throw new BoardOperationError('NOT_FOUND', `Checklist item "${itemId}" was not found`);
+  }
+  return item;
+}
+
+/** Removes an item; its sub-items stay, one level up (REQ-BOARD-041). */
 export function removeChecklistItem(
   board: BoardData,
   args: { cardId: string; itemId: string },
@@ -427,25 +577,16 @@ export function removeChecklistItem(
   now: number,
 ): BoardData {
   const found = requireLive(getCard(board, args.cardId));
-
-  if (!found.checklist.some((item) => item.id === args.itemId)) {
-    throw new BoardOperationError('NOT_FOUND', `Checklist item "${args.itemId}" was not found`);
-  }
-
-  return appendEvent(
-    {
-      ...board,
-      cards: replaceCard(board, args.cardId, (current) => ({
-        ...current,
-        checklist: current.checklist.filter((item) => item.id !== args.itemId),
-        updatedAt: now,
-      })),
-    },
-    'updated',
-    actor,
-    now,
-    { cardId: args.cardId },
-  );
+  const target = requireChecklistItem(found, args.itemId);
+  const list = found.checklist;
+  const at = list.indexOf(target);
+  const end = subtreeEnd(list, at);
+  const checklist = list.flatMap((item, index) => {
+    if (index === at) return [];
+    if (index > at && index < end) return [{ ...item, depth: depthOf(item) - 1 }];
+    return [item];
+  });
+  return withChecklist(board, args.cardId, normalizeChecklist(checklist), 'updated', actor, now);
 }
 
 export function deleteCard(

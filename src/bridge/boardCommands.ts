@@ -12,6 +12,16 @@
 import type { BoardCard, BoardColumnId, BoardData, BoardHostAdapter, BoardRef } from '../core';
 import {
   addChecklistItem,
+  depthOf,
+  generateId,
+  moveChecklistItem,
+  parseChecklistText,
+  removeChecklistItem,
+  renameChecklistItem,
+  replaceChecklist,
+  setChecklistItemDepth,
+  subtreeEnd,
+  type ChecklistEntry,
   addNote,
   archiveCard,
   BOARD_COLUMNS,
@@ -40,6 +50,8 @@ import type {
   BoardUpdatesResult,
   CardGetResult,
   CardListEntry,
+  CheckItemEntry,
+  ChecklistEditResult,
 } from './types';
 
 const ACTOR_RE = /^[a-z0-9][a-z0-9._-]{0,39}$/;
@@ -131,6 +143,34 @@ export function createBoardCommands(
     return value;
   }
 
+  /** Checklist entries: strings, or { text, done?, depth? } (REQ-BOARD-042). */
+  function optionalChecklistEntries(params: Record<string, unknown>, key: string): ChecklistEntry[] | undefined {
+    const value = params[key];
+    if (value === undefined || value === null) return undefined;
+    const invalid = () =>
+      new BridgeCommandError('INVALID', `"${key}" must be an array of strings or { text, done?, depth? } items`);
+    if (!Array.isArray(value)) throw invalid();
+    return value.map((entry) => {
+      if (typeof entry === 'string') return { text: entry };
+      if (!entry || typeof entry !== 'object' || typeof entry.text !== 'string') throw invalid();
+      const { text, done, depth } = entry as Record<string, unknown>;
+      if (done !== undefined && typeof done !== 'boolean') throw invalid();
+      if (depth !== undefined && (typeof depth !== 'number' || !Number.isInteger(depth) || depth < 0)) throw invalid();
+      return { text: text as string, done: done as boolean | undefined, depth: depth as number | undefined };
+    });
+  }
+
+  function requireItemRef(params: Record<string, unknown>, key = 'item'): string | number {
+    const ref = params[key];
+    if (
+      !(typeof ref === 'string' && ref.trim().length > 0)
+      && !(typeof ref === 'number' && Number.isInteger(ref))
+    ) {
+      throw new BridgeCommandError('INVALID', `"${key}" must be a checklist item id or 1-based index`);
+    }
+    return typeof ref === 'string' ? ref.trim() : ref;
+  }
+
   function requireCardRef(params: Record<string, unknown>): string | number {
     const card = params.card;
     if (typeof card === 'number' && Number.isInteger(card) && card > 0) return card;
@@ -216,6 +256,23 @@ export function createBoardCommands(
     };
   }
 
+  function checkItems(card: BoardCard): CheckItemEntry[] {
+    return card.checklist.map((item, index) => ({
+      id: item.id,
+      index: index + 1,
+      text: item.text,
+      done: item.done,
+      depth: depthOf(item),
+    }));
+  }
+
+  function checklistResult(board: BoardData, cardId: string, itemId?: string): ChecklistEditResult {
+    const card = board.cards.find((entry) => entry.id === cardId)!;
+    const items = checkItems(card);
+    const item = itemId ? items.find((entry) => entry.id === itemId) : undefined;
+    return { ...summariseCard(card), items, ...(item ? { item } : {}) };
+  }
+
   function cardDetail(board: BoardData, card: BoardCard): BoardCardDetail {
     return {
       id: card.id,
@@ -226,7 +283,7 @@ export function createBoardCommands(
       order: card.order,
       assignee: card.assignee,
       labels: card.labels,
-      checklist: card.checklist.map((item) => ({ id: item.id, text: item.text, done: item.done })),
+      checklist: checkItems(card),
       notes: card.notes.map((note) => ({
         id: note.id,
         author: note.author,
@@ -326,7 +383,7 @@ export function createBoardCommands(
     const column = optionalColumnId(params) ?? 'todo';
     const description = optionalString(params, 'description');
     const labels = optionalStringList(params, 'labels');
-    const checklist = optionalStringList(params, 'checklist');
+    const checklist = optionalChecklistEntries(params, 'checklist');
     const now = Date.now();
     let createdNumber = 0;
     const board = editBoard(boardId, actor, undefined, (current) => {
@@ -412,39 +469,133 @@ export function createBoardCommands(
     return summariseCard(next.cards.find((item) => item.id === card.id)!);
   }
 
-  function cardCheck(params: Record<string, unknown>): CardListEntry {
+  function cardCheck(params: Record<string, unknown>): ChecklistEditResult {
     const actor = requireActor(params);
     const boardId = requireString(params, 'boardId');
     const done = optionalBool(params, 'done');
     if (done === undefined) {
       throw new BridgeCommandError('INVALID', '"done" must be a boolean');
     }
-    const itemRef = params.item;
-    if (
-      !(typeof itemRef === 'string' && itemRef.trim().length > 0)
-      && !(typeof itemRef === 'number' && Number.isInteger(itemRef))
-    ) {
-      throw new BridgeCommandError('INVALID', '"item" must be a checklist item id or 1-based index');
-    }
+    const itemRef = requireItemRef(params);
     const { board } = requireBoard(boardId);
     const card = runBoardOp(() => resolveCardRef(board, requireCardRef(params)));
-    const item = runBoardOp(() => resolveCheckItem(card, itemRef as string | number));
+    const item = runBoardOp(() => resolveCheckItem(card, itemRef));
     const next = editBoard(boardId, actor, card.id, (current) =>
       setChecklistItem(current, { cardId: card.id, itemId: item.id, done }, actor, Date.now()),
     );
-    return summariseCard(next.cards.find((item) => item.id === card.id)!);
+    return checklistResult(next, card.id, item.id);
   }
 
-  function cardChecklistAdd(params: Record<string, unknown>): CardListEntry {
+  /**
+   * Adds an item: `under` an item (as its last sub-item), at a 1-based
+   * `position` (a sibling of the item there unless `depth` says otherwise), or
+   * at the end.
+   */
+  function cardChecklistAdd(params: Record<string, unknown>): ChecklistEditResult {
     const actor = requireActor(params);
     const boardId = requireString(params, 'boardId');
     const text = requireString(params, 'text');
+    const position = optionalInt(params, 'position');
+    const depth = optionalInt(params, 'depth');
+    const done = optionalBool(params, 'done');
+    if (position === 0) throw new BridgeCommandError('INVALID', '"position" is 1-based');
+    const { board } = requireBoard(boardId);
+    const card = runBoardOp(() => resolveCardRef(board, requireCardRef(params)));
+    const list = card.checklist;
+    let index = list.length;
+    let level = depth ?? 0;
+    if (params.under !== undefined && params.under !== null) {
+      const parent = runBoardOp(() => resolveCheckItem(card, requireItemRef(params, 'under')));
+      index = subtreeEnd(list, list.indexOf(parent));
+      level = depthOf(parent) + 1;
+    } else if (position !== undefined) {
+      index = Math.min(position - 1, list.length);
+      level = depth ?? (list[index] ? depthOf(list[index]) : 0);
+    }
+    const id = generateId();
+    const next = editBoard(boardId, actor, card.id, (current) =>
+      addChecklistItem(current, { cardId: card.id, text, index, depth: level, done, id }, actor, Date.now()),
+    );
+    return checklistResult(next, card.id, id);
+  }
+
+  /** Changes an item's text, done state or level; at least one is required. */
+  function cardChecklistUpdate(params: Record<string, unknown>): ChecklistEditResult {
+    const actor = requireActor(params);
+    const boardId = requireString(params, 'boardId');
+    const itemRef = requireItemRef(params);
+    const text = optionalString(params, 'text');
+    const done = optionalBool(params, 'done');
+    const depth = optionalInt(params, 'depth');
+    if (text === undefined && done === undefined && depth === undefined) {
+      throw new BridgeCommandError('INVALID', 'Pass "text", "done" or "depth" to change');
+    }
+    if (text !== undefined && !text.trim()) {
+      throw new BridgeCommandError('INVALID', '"text" must be a non-empty string');
+    }
+    const { board } = requireBoard(boardId);
+    const card = runBoardOp(() => resolveCardRef(board, requireCardRef(params)));
+    const item = runBoardOp(() => resolveCheckItem(card, itemRef));
+    const now = Date.now();
+    const next = editBoard(boardId, actor, card.id, (current) => {
+      let edited = current;
+      const args = { cardId: card.id, itemId: item.id };
+      if (text !== undefined) edited = renameChecklistItem(edited, { ...args, text }, actor, now);
+      if (done !== undefined && done !== item.done) edited = setChecklistItem(edited, { ...args, done }, actor, now);
+      if (depth !== undefined) edited = setChecklistItemDepth(edited, { ...args, depth }, actor, now);
+      return edited;
+    });
+    return checklistResult(next, card.id, item.id);
+  }
+
+  /** Removes an item; its sub-items stay, one level up. */
+  function cardChecklistRemove(params: Record<string, unknown>): ChecklistEditResult {
+    const actor = requireActor(params);
+    const boardId = requireString(params, 'boardId');
+    const itemRef = requireItemRef(params);
+    const { board } = requireBoard(boardId);
+    const card = runBoardOp(() => resolveCardRef(board, requireCardRef(params)));
+    const item = runBoardOp(() => resolveCheckItem(card, itemRef));
+    const next = editBoard(boardId, actor, card.id, (current) =>
+      removeChecklistItem(current, { cardId: card.id, itemId: item.id }, actor, Date.now()),
+    );
+    return checklistResult(next, card.id);
+  }
+
+  /** Moves an item, alone, to a 1-based position. */
+  function cardChecklistMove(params: Record<string, unknown>): ChecklistEditResult {
+    const actor = requireActor(params);
+    const boardId = requireString(params, 'boardId');
+    const itemRef = requireItemRef(params);
+    const position = optionalInt(params, 'position');
+    if (position === undefined || position < 1) {
+      throw new BridgeCommandError('INVALID', '"position" must be a 1-based integer');
+    }
+    const { board } = requireBoard(boardId);
+    const card = runBoardOp(() => resolveCardRef(board, requireCardRef(params)));
+    const item = runBoardOp(() => resolveCheckItem(card, itemRef));
+    const next = editBoard(boardId, actor, card.id, (current) =>
+      moveChecklistItem(current, { cardId: card.id, itemId: item.id, index: position - 1 }, actor, Date.now()),
+    );
+    return checklistResult(next, card.id, item.id);
+  }
+
+  /** Replaces the whole checklist from `items` or PowerPlan-style `text`. */
+  function cardChecklistSet(params: Record<string, unknown>): ChecklistEditResult {
+    const actor = requireActor(params);
+    const boardId = requireString(params, 'boardId');
+    const fromItems = optionalChecklistEntries(params, 'items');
+    const fromText = optionalString(params, 'text');
+    if ((fromItems === undefined) === (fromText === undefined)) {
+      throw new BridgeCommandError('INVALID', 'Pass either "items" or "text"');
+    }
+    const items = fromItems ?? parseChecklistText(fromText!);
     const { board } = requireBoard(boardId);
     const card = runBoardOp(() => resolveCardRef(board, requireCardRef(params)));
     const next = editBoard(boardId, actor, card.id, (current) =>
-      addChecklistItem(current, { cardId: card.id, text }, actor, Date.now()),
+      replaceChecklist(current, { cardId: card.id, items }, actor, Date.now()),
     );
-    return summariseCard(next.cards.find((item) => item.id === card.id)!);
+    return checklistResult(next, card.id);
   }
 
   function cardArchive(params: Record<string, unknown>): CardListEntry {
@@ -567,6 +718,10 @@ export function createBoardCommands(
     card_note: cardNote,
     card_check: cardCheck,
     card_checklist_add: cardChecklistAdd,
+    card_checklist_update: cardChecklistUpdate,
+    card_checklist_remove: cardChecklistRemove,
+    card_checklist_move: cardChecklistMove,
+    card_checklist_set: cardChecklistSet,
     card_archive: cardArchive,
     card_restore: cardRestore,
     agent_status: agentStatus,

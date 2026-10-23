@@ -22,6 +22,8 @@ export interface BoardCheckItem {
   id: string;
   text: string;
   done: boolean;
+  /** Nesting level, 0 to 3 (REQ-BOARD-040); absent means the top level. */
+  depth?: number;
 }
 
 export interface BoardCard {

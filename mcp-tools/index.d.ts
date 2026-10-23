@@ -18,6 +18,9 @@ export declare const NAME_REQUIRED_MESSAGE: string;
 /** The workflow blurb appended to every board tool description. */
 export declare const BOARD_WORKFLOW: string;
 
+/** Schema for a checklist item an agent writes: a title or { text, done?, depth? }. */
+export declare const CHECK_ENTRY: Record<string, unknown>;
+
 /** Schema for the `me` property shared by every board tool that takes one. */
 export declare const ME_PROP: { type: 'string'; description: string };
 

@@ -72,6 +72,7 @@ These are PowerScroll's board requirements, kept verbatim.
 | REQ-PB-121 | The bridge client shall run board commands through `createBoardCommands` and handle the hub's `agents` frame (REQ-BOARD-018) and `displaced` frame (stop retrying, untick the toggle, say why). | Must | `src/app/bridge/client.test.ts`, `tests/agent-bridge.spec.ts` |
 | REQ-PB-130 | `powerboard-mcp` shall serve the board tools plus `bridge_status` over MCP stdio, host the WebSocket on 127.0.0.1:41778, and use the same hub/peer election, lease and LOCKED semantics as powerscroll-mcp (protocol v1). | Must | `mcp/test/board-tools.test.mjs`, `mcp/test/hub-election.test.mjs` |
 | REQ-PB-131 | `powerboard-mcp` shall take the agent name from `me` or `POWERBOARD_AGENT_NAME` (falling back to `POWERNOTE_AGENT_NAME`) and reject missing or generated names with NAME_REQUIRED. | Must | `mcp/test/agent-names.test.mjs`, `mcp/test/board-tools.test.mjs`, `mcp-tools/test/mcp-tools.test.mjs`, `tests/agent/217-agent-names-required.spec.ts` |
+| REQ-PB-140 | Checklist items shall nest up to depth 3 and agents shall edit them with `card_checklist_add/_update/_remove/_move/_set`, as PowerScroll's REQ-BOARD-040..042 (owner request 2026-10-23). The card shows each level indented with Indent / Outdent buttons and Alt+Right / Alt+Left. | Must | `src/bridge/checklistCommands.test.ts`, `mcp-tools/test/mcp-tools.test.mjs` |
 
 ## Traceability
 

@@ -1,6 +1,6 @@
 {
   "name": "powerboard-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "MCP server for reading and editing a live PowerBoard task board",
   "main": "server.js",

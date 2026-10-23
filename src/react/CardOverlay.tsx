@@ -1,21 +1,31 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { IndentDecrease, IndentIncrease, X } from 'lucide-react';
 import type { BoardCard, BoardColumnId, BoardData } from '../contract';
 import {
   addChecklistItem,
   addNote,
   archiveCard,
   claimCard,
+  depthOf,
+  MAX_CHECK_DEPTH,
   moveCard,
   releaseCard,
   removeChecklistItem,
   setChecklistItem,
+  setChecklistItemDepth,
   updateCard,
   BOARD_COLUMNS,
 } from '../core';
 import { avatarColor, avatarInitial, collapseEditRuns, displayName, relativeTime, statusClass } from './boardUi';
 
 const ACTOR = 'you';
+
+/** Indents or outdents an item from the board's own copy, so held keys use the latest levels. */
+function shiftChecklistItem(board: BoardData, cardId: string, itemId: string, step: number): BoardData {
+  const current = board.cards.find((entry) => entry.id === cardId)?.checklist.find((entry) => entry.id === itemId);
+  if (!current) return board;
+  return setChecklistItemDepth(board, { cardId, itemId, depth: depthOf(current) + step }, ACTOR, Date.now());
+}
 
 /** Typed text waits here until the card closes; null means the field is untouched. */
 interface Drafts {
@@ -61,6 +71,8 @@ export function CardOverlay({ card, cards, events, edit, renderMarkdown, onClose
   const [descriptionEditing, setDescriptionEditing] = useState(false);
   const [note, setNote] = useState('');
   const [checklistItem, setChecklistDraft] = useState('');
+  const shiftItem = (itemId: string, step: number) =>
+    edit((board) => shiftChecklistItem(board, card.id, itemId, step));
   const [label, setLabel] = useState('');
   const [question, setQuestion] = useState(card.question ?? '');
   const [askingQuestion, setAskingQuestion] = useState(false);
@@ -355,8 +367,19 @@ export function CardOverlay({ card, cards, events, edit, renderMarkdown, onClose
                 <span>{card.checklist.filter((item) => item.done).length} of {card.checklist.length}</span>
               </div>
               <ul className="board-checklist">
-                {card.checklist.map((item) => (
-                  <li key={item.id}>
+                {card.checklist.map((item, index) => (
+                  <li
+                    key={item.id}
+                    data-check-item={item.id}
+                    data-depth={depthOf(item)}
+                    style={{ paddingLeft: depthOf(item) * 22 }}
+                    onKeyDown={(event) => {
+                      // REQ-BOARD-041: Alt+Right / Alt+Left indent and outdent the focused item.
+                      if (!event.altKey || (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft')) return;
+                      event.preventDefault();
+                      shiftItem(item.id, event.key === 'ArrowRight' ? 1 : -1);
+                    }}
+                  >
                     <input
                       type="checkbox"
                       checked={item.done}
@@ -370,6 +393,31 @@ export function CardOverlay({ card, cards, events, edit, renderMarkdown, onClose
                     <span className={item.done ? 'board-checklist__done' : ''}>{item.text}</span>
                     <button
                       type="button"
+                      className="board-checklist__level"
+                      aria-label={`Outdent ${item.text}`}
+                      title="Outdent (Alt+Left)"
+                      disabled={depthOf(item) === 0}
+                      onClick={() => shiftItem(item.id, -1)}
+                    >
+                      <IndentDecrease size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      className="board-checklist__level"
+                      aria-label={`Indent ${item.text}`}
+                      title="Indent (Alt+Right)"
+                      disabled={
+                        index === 0
+                        || depthOf(item) >= MAX_CHECK_DEPTH
+                        || depthOf(item) > depthOf(card.checklist[index - 1])
+                      }
+                      onClick={() => shiftItem(item.id, 1)}
+                    >
+                      <IndentIncrease size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      className="board-checklist__remove"
                       aria-label={`Remove ${item.text}`}
                       onClick={() => edit((board) => removeChecklistItem(board, {
                         cardId: card.id,
